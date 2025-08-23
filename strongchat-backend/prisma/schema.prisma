@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  email           String    @unique
+  name            String
+  password        String
+  role            UserRole
+  bio             String?
+  avatar          String?
+  isOnline        Boolean   @default(false)
+  lastSeen        DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  status          UserStatus @default(ACTIVE)
+  senderMessage   Message[] @relation("MessageSender")
+  receiverMessage Message[] @relation("MessageReceiver")
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+model Message {
+  id       String      @id @default(auto()) @map("_id") @db.ObjectId
+  content  String
+  type     MessageType @default(TEXT)
+  mediaUrl String?
+
+  senderId String @db.ObjectId
+  sender   User   @relation("MessageSender", fields: [senderId], references: [id])
+
+  receiverId String @db.ObjectId
+  receiver   User   @relation("MessageReceiver", fields: [receiverId], references: [id])
+
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("messages")
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+}
