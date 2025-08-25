@@ -92,19 +92,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       type,
       mediaUrl: mediaUrl || null,
     };
-    console.log("sendData: ", sendData);
     if (!socket) return;
 
-    // socket.emit("send_message", {
-    //   receiverId: selectedUser.id,
-    //   content,
-    //   type,
-    //   mediaUrl,
-    // });
-    console.log("Emitting send_message with data: ", sendData);
     socket.emit("send_message", sendData);
     setIsTyping(false);
-    console.log("Message sended event emitted");
   };
 
   const formatLastSeen = (lastSeen: Date) => {

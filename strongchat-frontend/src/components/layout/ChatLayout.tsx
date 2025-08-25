@@ -13,13 +13,43 @@ export const ChatLayout: React.FC = () => {
   const socket = useSocket(token);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-
-  console.log("Token in ChatLayout: ", token);
-  console.log("socket in ChatLayout: ", socket);
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on("connection", () => {
+      console.log("Socket connected!");
+    });
+
+    // find all users list
+    socket.emit("find_users");
+
+    socket.on("users_list", (usersList: User[]) => {
+      setUsers(usersList);
+    })
+
+    // find online users list
+    socket.on("online_users", (onlineUsers: string[]) => {
+      console.log("online_users: ", onlineUsers);
+      setOnlineUsers(onlineUsers);
+    });
+
+    // Will call disconnect when exiting the browser tab or closing the browser
+    socket.on("disconnect", () => {
+      console.log("Socket disconnected!");
+    });
+
+
+    return () => {
+      socket.off("online_users");
+      socket.off("connection");
+      socket.off("disconnect");
+    };
+  }, [socket]);
 
   const fetchUsers = async () => {
     try {
@@ -44,11 +74,24 @@ export const ChatLayout: React.FC = () => {
 
   console.log("Selected User:", selectedUser);
 
+  // users list update when online USers change
+  useEffect(() => {
+    setUsers((prevUser) =>
+      prevUser.map((user) => ({
+        ...user,
+        isOnline: onlineUsers.includes(user.id),
+      }))
+    );
+  }, [onlineUsers]);
+
+  console.log("Users with online status: ", users)
+
   return (
     <div className="h-screen flex bg-gray-950">
       <ChatSidebar
         selectedUserId={selectedUser?.id}
         onUserSelect={handleUserSelect}
+        users={users}
       />
 
       {selectedUser ? (
