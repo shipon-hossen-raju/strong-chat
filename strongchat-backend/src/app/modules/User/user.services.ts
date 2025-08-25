@@ -109,6 +109,7 @@ const getUsersFromDb = async (
       role: true,
       createdAt: true,
       updatedAt: true,
+      isOnline: true,
     },
   });
   const total = await prisma.user.count({

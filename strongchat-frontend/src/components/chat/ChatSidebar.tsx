@@ -14,33 +14,21 @@ import { UserList } from "./UserList";
 interface ChatSidebarProps {
   selectedUserId?: string;
   onUserSelect: (userId: string) => void;
+  users: User[];
 }
 
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   selectedUserId,
   onUserSelect,
+  users
 }) => {
   const { user, logout, updateProfile } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const [profileData, setProfileData] = useState({
     name: user?.name || "",
     bio: user?.bio || "",
   });
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get("/users");
-      setUsers(response.data.data.users || []);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-    }
-  };
 
   const filteredUsers =
     users.length &&
@@ -56,9 +44,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       console.error("Error updating profile:", error);
     }
   };
-
-  
-  console.log("selectedUserId:", selectedUserId);
 
   return (
     <>

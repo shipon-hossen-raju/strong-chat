@@ -7,6 +7,9 @@ interface AuthenticatedSocket extends Socket {
   userId?: string;
 }
 
+// online users
+const onlineUsers = new Map<string, string>();
+
 export const socketHandler = (io: Server) => {
   console.log("Socket.io server running...");
 
@@ -14,8 +17,8 @@ export const socketHandler = (io: Server) => {
   io.use((socket: AuthenticatedSocket, next) => {
     try {
       const token =
-        socket.handshake.auth.token || // 👈 from frontend io({ auth: { token } })
-        socket.handshake.headers.authorization?.split(" ")[1];
+        socket.handshake.headers.authorization?.split(" ")[1] ||
+        socket.handshake.auth.token;
 
       if (!token) {
         return next(new Error("Authentication error: Token missing"));
@@ -23,8 +26,6 @@ export const socketHandler = (io: Server) => {
 
       const secret = process.env.JWT_SECRET || "secret";
       const decoded = jwt.verify(token, secret);
-
-      console.log("Socket decoded: ", decoded);
 
       if (typeof decoded === "object" && decoded !== null && "id" in decoded) {
         socket.userId = (decoded as { id: string }).id;
@@ -60,17 +61,25 @@ export const socketHandler = (io: Server) => {
       socket.disconnect();
       return;
     }
-
     await prisma.user.update({
-      where: {
-        id: userId,
-      },
-      data: {
-        isOnline: true,
-      },
+      where: { id: userId },
+      data: { isOnline: true },
     });
 
     socket.join(userId);
+    onlineUsers.set(userId, socket.id);
+    io.emit("online_users", Array.from(onlineUsers.keys()));
+
+    // find all users & emit
+    socket.on("users_list", async () => {
+      const users = await prisma.user.findMany({
+        where: { id: { not: userId } },
+        select: {
+          id: true,
+        }
+      })
+    } );
+
     type sendResponse = {
       receiverId: string;
       content: string;
@@ -84,12 +93,19 @@ export const socketHandler = (io: Server) => {
       const message = await messageService.createIntoDb(
         { receiverId, content, type, mediaUrl },
         userId
-       );
-       
+      );
+
       io.to(receiverId).emit("receive_message", message);
       socket.emit("message_sent", message);
     });
 
-    console.log("Find User: ", findUser);
+    socket.on("disconnect", async () => {
+      onlineUsers.delete(userId);
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isOnline: false, lastSeen: new Date() },
+      });
+      io.emit("online_users", Array.from(onlineUsers.keys()));
+    });
   });
 };
